@@ -14,12 +14,15 @@ import (
 
 // Config holds application configuration
 type Config struct {
-	GoRepoPath    string
-	PromptsDir    string
-	OutputDir     string
-	CommitDataDir string
-	MaxConcurrency int
+	GoRepoPath       string
+	PromptsDir       string
+	OutputDir        string
+	CommitDataDir    string
+	MaxConcurrency   int
 	ExecutionTimeout time.Duration
+	QuotaRetryDelay  time.Duration
+	MaxRetries       int
+	RetryDelay       time.Duration
 }
 
 // QuotaErrors contains patterns that indicate quota limits
@@ -31,6 +34,33 @@ type CLICommand struct {
 	Command string
 }
 
+// ScriptRetryInfo tracks retry information for scripts
+type ScriptRetryInfo struct {
+	FileName    string
+	RetryCount  int
+	LastAttempt time.Time
+	FailReason  string
+}
+
+// CLIState manages the state of a CLI execution
+type CLIState struct {
+	Name           string
+	Command        CLICommand
+	Available      bool
+	LastQuotaError time.Time
+	PendingScripts []string
+}
+
+// CLIManager manages multiple CLI states
+type CLIManager struct {
+	CLIs       map[string]*CLIState
+	Config     *Config
+	RetryQueue chan string
+	RetryInfo  map[string]*ScriptRetryInfo
+	mu         sync.RWMutex
+	retryMu    sync.RWMutex
+}
+
 var (
 	config = Config{
 		GoRepoPath:       "go",
@@ -39,6 +69,9 @@ var (
 		CommitDataDir:    "commit_data",
 		MaxConcurrency:   20,
 		ExecutionTimeout: 10 * time.Minute,
+		QuotaRetryDelay:  1 * time.Hour,
+		MaxRetries:       3,
+		RetryDelay:       5 * time.Minute,
 	}
 
 	quotaErrors = QuotaErrors{
@@ -80,13 +113,89 @@ func isQuotaError(output string) bool {
 	return false
 }
 
-// handleQuotaError handles quota limit errors by terminating the program
-func handleQuotaError(scriptPath, output string) {
-	fmt.Fprintf(os.Stderr, "\n!!! Daily quota limit reached. Terminating program. !!!\n")
+// NewCLIManager creates a new CLI manager
+func NewCLIManager(config *Config) *CLIManager {
+	manager := &CLIManager{
+		CLIs:   make(map[string]*CLIState),
+		Config: config,
+	}
+
+	// Initialize all supported CLIs
+	for name, cmd := range supportedCLIs {
+		manager.CLIs[name] = &CLIState{
+			Name:           name,
+			Command:        cmd,
+			Available:      true,
+			PendingScripts: make([]string, 0),
+		}
+	}
+
+	return manager
+}
+
+// IsAvailable checks if a CLI is currently available (not in quota timeout)
+func (cm *CLIManager) IsAvailable(cliName string) bool {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	cli, exists := cm.CLIs[cliName]
+	if !exists {
+		return false
+	}
+
+	if !cli.Available {
+		// Check if enough time has passed since quota error
+		if time.Since(cli.LastQuotaError) >= cm.Config.QuotaRetryDelay {
+			cli.Available = true
+			fmt.Printf("CLI %s is now available again after quota timeout\n", cliName)
+		}
+	}
+
+	return cli.Available
+}
+
+// MarkQuotaError marks a CLI as unavailable due to quota error
+func (cm *CLIManager) MarkQuotaError(cliName string) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	if cli, exists := cm.CLIs[cliName]; exists {
+		cli.Available = false
+		cli.LastQuotaError = time.Now()
+		fmt.Printf("CLI %s marked as unavailable due to quota error. Will retry after %v\n", cliName, cm.Config.QuotaRetryDelay)
+	}
+}
+
+// GetAvailableCLIs returns list of currently available CLIs
+func (cm *CLIManager) GetAvailableCLIs() []string {
+	available := make([]string, 0)
+	for name := range cm.CLIs {
+		if cm.IsAvailable(name) {
+			available = append(available, name)
+		}
+	}
+	return available
+}
+
+// GetCLICommand returns the command for a CLI
+func (cm *CLIManager) GetCLICommand(cliName string) (CLICommand, bool) {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	if cli, exists := cm.CLIs[cliName]; exists {
+		return cli.Command, true
+	}
+	return CLICommand{}, false
+}
+
+// handleQuotaError handles quota limit errors with retry logic
+func handleQuotaError(scriptPath, output, cliName string, manager *CLIManager) bool {
+	fmt.Fprintf(os.Stderr, "\n!!! Quota limit reached for %s !!!\n", cliName)
 	fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
-	fmt.Fprintf(os.Stderr, "Please try again tomorrow or switch to a different API.\n")
 	fmt.Fprintf(os.Stderr, "Output:\n%s\n", output)
-	os.Exit(1)
+
+	manager.MarkQuotaError(cliName)
+	return true // Indicate quota error was handled
 }
 
 // getCommitHashes はコミットハッシュを古い順に取得します。
@@ -199,6 +308,11 @@ EOF
 
 // executePrompts は prompts ディレクトリ内のスクリプトを並列実行します。
 func executePrompts(cliCommand string) error {
+	return executePromptsWithManager(cliCommand, NewCLIManager(&config))
+}
+
+// executePromptsWithManager は CLIマネージャーを使用してプロンプトを実行します。
+func executePromptsWithManager(cliCommand string, manager *CLIManager) error {
 	files, err := os.ReadDir(config.PromptsDir)
 	if err != nil {
 		return fmt.Errorf("error reading prompts directory: %w", err)
@@ -216,139 +330,36 @@ func executePrompts(cliCommand string) error {
 		return nil
 	}
 
-	// CLIコマンドの決定
-	cli, exists := supportedCLIs[cliCommand]
-	if !exists {
-		return fmt.Errorf("unsupported CLI command: %s", cliCommand)
+	// 単一CLIの場合も特定のCLIのみで並列実行
+	if cliCommand != "all" {
+		return executeWithSpecificCLI(cliCommand, shFiles, manager)
 	}
 
+	// すべてのCLIを並列実行
+	return executeMultipleCLIs(shFiles, manager)
+}
+
+// executeWithSpecificCLI executes scripts with a specific CLI in parallel
+func executeWithSpecificCLI(cliCommand string, shFiles []string, manager *CLIManager) error {
 	fmt.Printf("\n--- Executing %d Prompt Scripts with %s ---\n", len(shFiles), cliCommand)
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 1)
-
-	for _, fileName := range shFiles {
-		wg.Add(1)
-		sem <- struct{}{}
-
-		go func(fName string) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			scriptPath := filepath.Join(config.PromptsDir, fName)
-
-			// ファイル名から出力ファイルのパスを決定
-			baseName := strings.TrimSuffix(fName, ".sh")
-			outputPath := filepath.Join(config.OutputDir, baseName+".md")
-
-			// スクリプト内のプレースホルダーを置換
-			content, err := os.ReadFile(scriptPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading script %s: %v\n", scriptPath, err)
-				return
-			}
-
-			// プレースホルダーを実際のCLIコマンドに置換（メモリ上でのみ）
-			modifiedContent := strings.ReplaceAll(string(content), "{{AI_CLI_COMMAND}}", cli.Command)
-
-			fmt.Printf("Executing script: %s\n", scriptPath)
-
-			// 修正されたスクリプトをstdinから実行（タイムアウト付き）
-			ctx, cancel := context.WithTimeout(context.Background(), config.ExecutionTimeout)
-			defer cancel()
-
-			cmd := exec.CommandContext(ctx, "/bin/bash")
-			cmd.Stdin = strings.NewReader(modifiedContent)
-			output, cmdErr := cmd.CombinedOutput() // stdoutとstderrを結合して取得
-
-			// Always check for token/quota related errors in the output
-			outputStr := string(output)
-
-			// タイムアウトエラーをチェック
-			if ctx.Err() == context.DeadlineExceeded {
-				fmt.Fprintf(os.Stderr, "\n!!! Script execution timed out after %v. Terminating. !!!\n", config.ExecutionTimeout)
-				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
-				return
-			}
-
-			// 一日のクォータ制限に達した場合はプログラム全体を終了
-			if isQuotaError(outputStr) {
-				handleQuotaError(scriptPath, outputStr)
-			}
-
-			if cmdErr != nil {
-				// 実行に失敗した場合 (token/quota エラー以外)
-				fmt.Fprintf(os.Stderr, "--- ❌ Error executing script: %s ---\n", scriptPath)
-				fmt.Fprintf(os.Stderr, "Error: %v\n", cmdErr)
-				fmt.Fprintf(os.Stderr, "Output:\n%s\n", outputStr)
-				fmt.Fprintf(os.Stderr, "--- End of Error for %s ---\n", scriptPath)
-				return // スクリプトは削除しない
-			}
-
-			// AI の出力部分のみを抽出
-			lines := strings.Split(outputStr, "\n")
-			var aiOutput []string
-			capturing := false
-			foundValidContent := false
-
-			for _, line := range lines {
-				// AI の実際の出力開始を検出
-				if strings.Contains(line, "# [インデックス") {
-					capturing = true
-					foundValidContent = true
-				}
-
-				// "✅ Done" メッセージが出たら終了
-				if strings.Contains(line, "✅ Done") {
-					break
-				}
-
-				if capturing {
-					aiOutput = append(aiOutput, line)
-				}
-			}
-
-			// 出力の品質をチェック
-			aiOutputContent := strings.Join(aiOutput, "\n")
-			outputValid := foundValidContent &&
-				len(strings.TrimSpace(aiOutputContent)) > 100 && // 最小文字数
-				strings.Contains(aiOutputContent, "## コミット") && // 必須セクションの存在
-				!strings.Contains(outputStr, "GaxiosError") && // エラー出力がない
-				!strings.Contains(outputStr, "API Error") // APIエラーがない
-
-			if outputValid {
-				// 成功した場合のみファイルに保存
-				if err := os.WriteFile(outputPath, []byte(aiOutputContent), 0644); err != nil {
-					fmt.Fprintf(os.Stderr, "Error saving output to %s: %v\n", outputPath, err)
-					return
-				}
-				fmt.Printf("--- ✅ Successfully executed script: %s ---\n", scriptPath)
-				fmt.Printf("Saved output to: %s\n", outputPath)
-
-				// 成功時のみスクリプトを削除
-				if err := os.Remove(scriptPath); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to delete script %s: %v\n", scriptPath, err)
-				} else {
-					fmt.Printf("Deleted script: %s\n", scriptPath)
-				}
-			} else {
-				// 出力が不完全または無効な場合
-				fmt.Fprintf(os.Stderr, "--- ⚠️ Script executed but output is incomplete or invalid: %s ---\n", scriptPath)
-				fmt.Fprintf(os.Stderr, "Output length: %d characters\n", len(aiOutputContent))
-				fmt.Fprintf(os.Stderr, "Found valid content: %v\n", foundValidContent)
-				if len(outputStr) > 500 {
-					fmt.Fprintf(os.Stderr, "Output preview:\n%s...\n", outputStr[:500])
-				} else {
-					fmt.Fprintf(os.Stderr, "Full output:\n%s\n", outputStr)
-				}
-				return // スクリプトを削除せずに終了
-			}
-
-		}(fileName)
+	// Create script queue
+	scriptQueue := make(chan string, len(shFiles))
+	for _, file := range shFiles {
+		scriptQueue <- file
 	}
+	close(scriptQueue)
+
+	var wg sync.WaitGroup
+
+	// Start worker for specific CLI
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		cliWorker(cliCommand, scriptQueue, manager)
+	}()
 
 	wg.Wait()
-	fmt.Println("\n--- All script executions complete ---")
 
 	// 最終確認
 	remainingFiles, _ := os.ReadDir(config.PromptsDir)
@@ -358,7 +369,297 @@ func executePrompts(cliCommand string) error {
 	} else {
 		fmt.Println("\nAll prompt scripts executed successfully and were deleted.")
 	}
+
 	return nil
+}
+
+// executeMultipleCLIs executes scripts with multiple CLIs in parallel
+func executeMultipleCLIs(shFiles []string, manager *CLIManager) error {
+	fmt.Printf("\n--- Executing %d Prompt Scripts with multiple CLIs in parallel ---\n", len(shFiles))
+
+	// Create script queue
+	scriptQueue := make(chan string, len(shFiles))
+	for _, file := range shFiles {
+		scriptQueue <- file
+	}
+	close(scriptQueue)
+
+	var wg sync.WaitGroup
+
+	// Start workers for each CLI
+	for cliName := range supportedCLIs {
+		wg.Add(1)
+		go func(cliName string) {
+			defer wg.Done()
+			cliWorker(cliName, scriptQueue, manager)
+		}(cliName)
+	}
+
+	// Monitor and retry logic
+	go quotaMonitor(manager, scriptQueue)
+
+	wg.Wait()
+
+	// 最終確認
+	remainingFiles, _ := os.ReadDir(config.PromptsDir)
+	if len(remainingFiles) > 0 {
+		fmt.Printf("\n%d scripts failed to execute and remain in the '%s' directory.\n", len(remainingFiles), config.PromptsDir)
+		fmt.Println("Please check the error messages above, fix the issues, and run the program again.")
+	} else {
+		fmt.Println("\nAll prompt scripts executed successfully and were deleted.")
+	}
+
+	return nil
+}
+
+// cliWorker processes scripts for a specific CLI
+func cliWorker(cliName string, scriptQueue <-chan string, manager *CLIManager) {
+	pendingScripts := make(map[string]bool) // Use map to prevent duplicates
+
+	for {
+		select {
+		case fileName, ok := <-scriptQueue:
+			if !ok {
+				// Queue is closed, process any pending scripts
+				if len(pendingScripts) > 0 && manager.IsAvailable(cliName) {
+					processPendingScripts(pendingScripts, cliName, manager)
+				}
+				return
+			}
+
+			// Check if CLI is available
+			if !manager.IsAvailable(cliName) {
+				// Add to pending scripts map (prevents duplicates)
+				if !pendingScripts[fileName] {
+					pendingScripts[fileName] = true
+					fmt.Printf("CLI %s is not available, queuing script %s for retry\n", cliName, fileName)
+				}
+				continue
+			}
+
+			cli, exists := manager.GetCLICommand(cliName)
+			if !exists {
+				fmt.Printf("CLI %s not found\n", cliName)
+				continue
+			}
+
+			// Try to process the script
+			success := processScriptWithRetry(fileName, cli, cliName, manager)
+			if !success {
+				// If processing failed (quota error), add to pending
+				if !pendingScripts[fileName] {
+					pendingScripts[fileName] = true
+					fmt.Printf("Script %s failed, added to pending queue\n", fileName)
+				}
+			} else {
+				// Remove from pending if it was there
+				delete(pendingScripts, fileName)
+			}
+
+		case <-time.After(30 * time.Second):
+			// Periodically check for pending scripts and CLI availability
+			if len(pendingScripts) > 0 && manager.IsAvailable(cliName) {
+				fmt.Printf("CLI %s is now available, processing %d pending scripts\n", cliName, len(pendingScripts))
+				processPendingScripts(pendingScripts, cliName, manager)
+			} else if len(pendingScripts) > 0 {
+				fmt.Printf("CLI %s still not available, %d scripts pending\n", cliName, len(pendingScripts))
+			}
+		}
+	}
+}
+
+// processPendingScripts processes all pending scripts and removes successful ones
+func processPendingScripts(pendingScripts map[string]bool, cliName string, manager *CLIManager) {
+	cli, exists := manager.GetCLICommand(cliName)
+	if !exists {
+		return
+	}
+
+	// Process pending scripts
+	for fileName := range pendingScripts {
+		success := processScriptWithRetry(fileName, cli, cliName, manager)
+		if success {
+			// Remove successful scripts from pending
+			delete(pendingScripts, fileName)
+			fmt.Printf("Successfully processed pending script: %s\n", fileName)
+		} else {
+			fmt.Printf("Pending script %s failed again, keeping in queue\n", fileName)
+			// Keep failed scripts in pending for next retry cycle
+		}
+	}
+}
+
+// processScriptWithRetry wraps processScript and returns success status
+func processScriptWithRetry(fileName string, cli CLICommand, cliName string, manager *CLIManager) bool {
+	// Store original availability state
+	originalAvailable := manager.IsAvailable(cliName)
+
+	processScript(fileName, cli, cliName, manager)
+
+	// Check if CLI became unavailable (indicating quota error)
+	newAvailable := manager.IsAvailable(cliName)
+	if originalAvailable && !newAvailable {
+		return false // Quota error occurred
+	}
+
+	// Check if script file still exists (successful scripts are deleted)
+	scriptPath := filepath.Join(config.PromptsDir, fileName)
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		return true // Script was successfully processed and deleted
+	}
+
+	return false // Script still exists, indicating failure
+}
+
+// quotaMonitor monitors quota status and provides status updates
+func quotaMonitor(manager *CLIManager, scriptQueue <-chan string) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			availableCLIs := manager.GetAvailableCLIs()
+			fmt.Printf("[Monitor] Available CLIs: %v\n", availableCLIs)
+
+			// Check quota status for each CLI
+			for cliName, cli := range manager.CLIs {
+				if !cli.Available {
+					timeRemaining := manager.Config.QuotaRetryDelay - time.Since(cli.LastQuotaError)
+					if timeRemaining > 0 {
+						fmt.Printf("[Monitor] CLI %s: quota limit, %v remaining until retry\n", cliName, timeRemaining.Round(time.Minute))
+					} else {
+						fmt.Printf("[Monitor] CLI %s: quota limit expired, should be available\n", cliName)
+					}
+				}
+			}
+
+			// Check for remaining scripts
+			files, err := os.ReadDir(config.PromptsDir)
+			if err == nil {
+				remainingScripts := 0
+				for _, file := range files {
+					if !file.IsDir() && strings.HasSuffix(file.Name(), ".sh") {
+						remainingScripts++
+					}
+				}
+				if remainingScripts > 0 {
+					fmt.Printf("[Monitor] Remaining scripts: %d\n", remainingScripts)
+				}
+			}
+		}
+	}
+}
+
+// processScript processes a single script with the given CLI
+func processScript(fileName string, cli CLICommand, cliName string, manager *CLIManager) {
+	scriptPath := filepath.Join(config.PromptsDir, fileName)
+
+	// ファイル名から出力ファイルのパスを決定
+	baseName := strings.TrimSuffix(fileName, ".sh")
+	outputPath := filepath.Join(config.OutputDir, baseName+".md")
+
+	// スクリプト内のプレースホルダーを置換
+	content, err := os.ReadFile(scriptPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading script %s: %v\n", scriptPath, err)
+		return
+	}
+
+	// プレースホルダーを実際のCLIコマンドに置換（メモリ上でのみ）
+	modifiedContent := strings.ReplaceAll(string(content), "{{AI_CLI_COMMAND}}", cli.Command)
+
+	fmt.Printf("Executing script %s with %s\n", scriptPath, cliName)
+
+	// 修正されたスクリプトをstdinから実行（タイムアウト付き）
+	ctx, cancel := context.WithTimeout(context.Background(), config.ExecutionTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "/bin/bash")
+	cmd.Stdin = strings.NewReader(modifiedContent)
+	output, cmdErr := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// タイムアウトエラーをチェック
+	if ctx.Err() == context.DeadlineExceeded {
+		fmt.Fprintf(os.Stderr, "\n!!! Script execution timed out after %v. Terminating. !!!\n", config.ExecutionTimeout)
+		fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
+		return
+	}
+
+	// クォータ制限に達した場合の処理
+	if isQuotaError(outputStr) {
+		handleQuotaError(scriptPath, outputStr, cliName, manager)
+		return
+	}
+
+	if cmdErr != nil {
+		// 実行に失敗した場合 (token/quota エラー以外)
+		fmt.Fprintf(os.Stderr, "--- ❌ Error executing script: %s ---\n", scriptPath)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", cmdErr)
+		fmt.Fprintf(os.Stderr, "Output:\n%s\n", outputStr)
+		fmt.Fprintf(os.Stderr, "--- End of Error for %s ---\n", scriptPath)
+		return
+	}
+
+	// AI の出力部分のみを抽出
+	lines := strings.Split(outputStr, "\n")
+	var aiOutput []string
+	capturing := false
+	foundValidContent := false
+
+	for _, line := range lines {
+		// AI の実際の出力開始を検出
+		if strings.Contains(line, "# [インデックス") {
+			capturing = true
+			foundValidContent = true
+		}
+
+		// "✅ Done" メッセージが出たら終了
+		if strings.Contains(line, "✅ Done") {
+			break
+		}
+
+		if capturing {
+			aiOutput = append(aiOutput, line)
+		}
+	}
+
+	// 出力の品質をチェック
+	aiOutputContent := strings.Join(aiOutput, "\n")
+	outputValid := foundValidContent &&
+		len(strings.TrimSpace(aiOutputContent)) > 100 &&
+		strings.Contains(aiOutputContent, "## コミット") &&
+		!strings.Contains(outputStr, "GaxiosError") &&
+		!strings.Contains(outputStr, "API Error")
+
+	if outputValid {
+		// 成功した場合のみファイルに保存
+		if err := os.WriteFile(outputPath, []byte(aiOutputContent), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Error saving output to %s: %v\n", outputPath, err)
+			return
+		}
+		fmt.Printf("--- ✅ Successfully executed script: %s with %s ---\n", scriptPath, cliName)
+		fmt.Printf("Saved output to: %s\n", outputPath)
+
+		// 成功時のみスクリプトを削除
+		if err := os.Remove(scriptPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to delete script %s: %v\n", scriptPath, err)
+		} else {
+			fmt.Printf("Deleted script: %s\n", scriptPath)
+		}
+	} else {
+		// 出力が不完全または無効な場合
+		fmt.Fprintf(os.Stderr, "--- ⚠️ Script executed but output is incomplete or invalid: %s ---\n", scriptPath)
+		fmt.Fprintf(os.Stderr, "Output length: %d characters\n", len(aiOutputContent))
+		fmt.Fprintf(os.Stderr, "Found valid content: %v\n", foundValidContent)
+		if len(outputStr) > 500 {
+			fmt.Fprintf(os.Stderr, "Output preview:\n%s...\n", outputStr[:500])
+		} else {
+			fmt.Fprintf(os.Stderr, "Full output:\n%s\n", outputStr)
+		}
+	}
 }
 
 // collectCommits は Go リポジトリからコミットデータを収集します。
@@ -608,7 +909,8 @@ func main() {
 		fmt.Println("")
 		fmt.Println("Options:")
 		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
-		fmt.Println("                            Supported: claude, claude-sonnet, gemini")
+		fmt.Println("                            Supported: claude, gemini, all")
+		fmt.Println("                            Use 'all' to run both CLIs in parallel")
 		fmt.Println("                            Only available with execute command")
 		os.Exit(1)
 	}
@@ -631,11 +933,13 @@ func main() {
 			}
 		}
 
-		// サポートされているCLIかチェック
-		_, exists := supportedCLIs[cliCommand]
-		if !exists {
-			fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, claude-sonnet, gemini\n", cliCommand)
-			os.Exit(1)
+		// サポートされているCLIかチェック (allは特別扱い)
+		if cliCommand != "all" {
+			_, exists := supportedCLIs[cliCommand]
+			if !exists {
+				fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, gemini, all\n", cliCommand)
+				os.Exit(1)
+			}
 		}
 
 		err = executePrompts(cliCommand)
@@ -652,7 +956,8 @@ func main() {
 		fmt.Println("")
 		fmt.Println("Options:")
 		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
-		fmt.Println("                            Supported: claude, claude-sonnet, gemini")
+		fmt.Println("                            Supported: claude, gemini, all")
+		fmt.Println("                            Use 'all' to run both CLIs in parallel")
 		fmt.Println("                            Only available with execute command")
 		os.Exit(1)
 	}
