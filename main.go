@@ -230,18 +230,6 @@ func executePrompts(cliCommand string) error {
 				os.Exit(1)                                         // プログラム全体を終了
 			}
 
-			// その他のAPI エラーパターンをチェック
-			if strings.Contains(outputStr, "quota") ||
-				strings.Contains(outputStr, "token") ||
-				strings.Contains(outputStr, "rate limit") ||
-				strings.Contains(outputStr, "URL_RETRIEVAL_STATUS_ERROR") ||
-				strings.Contains(outputStr, "unable to access the content") {
-				fmt.Fprintf(os.Stderr, "\n!!! Detected potential API error. Script may have failed. !!!\n")
-				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
-				fmt.Fprintf(os.Stderr, "Output:\n%s\n", outputStr) // Print output for debugging
-				return                                             // スクリプトを削除せずに終了
-			}
-
 			if cmdErr != nil {
 				// 実行に失敗した場合 (token/quota エラー以外)
 				fmt.Fprintf(os.Stderr, "--- ❌ Error executing script: %s ---\n", scriptPath)
