@@ -427,7 +427,7 @@ func cliWorker(cliName string, scriptQueue <-chan string, manager *CLIManager) {
 				// Add to pending scripts map (prevents duplicates)
 				if !pendingScripts[fileName] {
 					pendingScripts[fileName] = true
-					
+
 					// Log unavailability message only periodically to reduce spam
 					now := time.Now()
 					if now.Sub(lastUnavailableLogTime) > unavailableLogInterval {
@@ -501,49 +501,49 @@ func processPendingScripts(pendingScripts map[string]bool, cliName string, manag
 func processScriptWithRetry(fileName string, cli CLICommand, cliName string, manager *CLIManager) bool {
 	// Store original availability state
 	originalAvailable := manager.IsAvailable(cliName)
-	
+
 	// Store paths
 	scriptPath := filepath.Join(config.PromptsDir, fileName)
 	baseName := strings.TrimSuffix(fileName, ".sh")
 	outputPath := filepath.Join(config.OutputDir, baseName+".md")
-	
+
 	// Check if files exist before processing
 	scriptExistsBefore := true
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		scriptExistsBefore = false
 	}
-	
+
 	processScript(fileName, cli, cliName, manager)
-	
+
 	// Check if CLI became unavailable (indicating quota error)
 	newAvailable := manager.IsAvailable(cliName)
 	if originalAvailable && !newAvailable {
 		return false // Quota error occurred
 	}
-	
+
 	// Check if script file still exists (successful scripts are deleted)
 	scriptExistsAfter := true
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		scriptExistsAfter = false
 	}
-	
+
 	// Check if output file was created and is valid
 	outputExists := false
 	if _, err := os.Stat(outputPath); err == nil {
 		outputExists = true
 	}
-	
+
 	// Success criteria: script was deleted AND valid output was created
 	if scriptExistsBefore && !scriptExistsAfter && outputExists {
 		return true // Complete success
 	}
-	
+
 	// If script still exists but output was created (quality check failed)
 	if scriptExistsBefore && scriptExistsAfter && outputExists {
 		fmt.Printf("Quality check failed for %s, output file removed, script kept for retry\n", fileName)
 		return false // Quality check failure
 	}
-	
+
 	return false // Other failure cases
 }
 
@@ -690,7 +690,7 @@ func processScript(fileName string, cli CLICommand, cliName string, manager *CLI
 		fmt.Fprintf(os.Stderr, "--- ⚠️ Script executed but output is incomplete or invalid: %s ---\n", scriptPath)
 		fmt.Fprintf(os.Stderr, "Output length: %d characters\n", len(aiOutputContent))
 		fmt.Fprintf(os.Stderr, "Found valid content: %v\n", foundValidContent)
-		
+
 		// 不完全な出力ファイルが既に存在する場合は削除
 		if _, err := os.Stat(outputPath); err == nil {
 			if removeErr := os.Remove(outputPath); removeErr != nil {
@@ -699,13 +699,13 @@ func processScript(fileName string, cli CLICommand, cliName string, manager *CLI
 				fmt.Printf("Removed incomplete output file: %s\n", outputPath)
 			}
 		}
-		
+
 		if len(outputStr) > 500 {
 			fmt.Fprintf(os.Stderr, "Output preview:\n%s...\n", outputStr[:500])
 		} else {
 			fmt.Fprintf(os.Stderr, "Full output:\n%s\n", outputStr)
 		}
-		
+
 		// スクリプトは削除せずにリトライ用に保持
 		fmt.Printf("Script %s kept for retry\n", scriptPath)
 	}
