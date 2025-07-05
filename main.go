@@ -222,7 +222,8 @@ func executePrompts(cliCommand string) error {
 				strings.Contains(outputStr, "quota metric") ||
 				strings.Contains(outputStr, "RESOURCE_EXHAUSTED") ||
 				strings.Contains(outputStr, "rateLimitExceeded") ||
-				strings.Contains(outputStr, "per day per user") {
+				strings.Contains(outputStr, "per day per user") ||
+				strings.Contains(outputStr, "Claude AI usage limit reached") {
 				fmt.Fprintf(os.Stderr, "\n!!! Daily quota limit reached. Terminating program. !!!\n")
 				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
 				fmt.Fprintf(os.Stderr, "Please try again tomorrow or switch to a different API.\n")
